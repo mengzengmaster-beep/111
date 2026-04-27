@@ -1,7 +1,4 @@
-import sys
-!{sys.executable} -m pip install streamlit
-
-import streamlit as st
+streamlit_code = '''import streamlit as st
 import pandas as pd
 
 st.set_page_config(page_title="理財風險評估問卷", layout="centered")
@@ -60,3 +57,9 @@ if submitted:
     st.markdown(f"### 評估結果：<span style='color:{color}'>{category}</span>", unsafe_allow_html=True)
     st.write(f"**您的總分：{total_score}**")
     st.info(desc)
+'''
+
+with open('app.py', 'w', encoding='utf-8') as f:
+    f.write(streamlit_code)
+
+print("檔案 app.py 已成功建立！")

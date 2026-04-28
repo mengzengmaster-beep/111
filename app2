@@ -1,0 +1,120 @@
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+
+# 1. 頁面基礎設定
+st.set_page_config(page_title="專業理財風險評估", layout="centered")
+
+# 2. 定義題目與邏輯
+# 將題目分類，並轉換為易讀格式
+questions_data = [
+    {"id": "Q1", "text": "您的主要資金來源為何？", "options": ["薪資所得", "繼承或贈與", "儲蓄", "退休金"], "score": None},
+    {"id": "Q2", "text": "您的職業類型？", "options": ["金融服務業", "政府機關", "醫藥/法律/會計", "自由業", "學生/家管", "其他"], "score": None},
+    {"id": "Q3", "text": "以下學經歷敘述符合幾項？\n(相關職位、證照、商品課程、財經背景)", "options": ["0項", "1項", "2項", "3項", "4項"], "scores": [5, 4, 3, 2, 1]},
+    {"id": "Q4", "text": "一般金融商品投資經驗", "options": ["無經驗", "1年以內", "1-3年", "3-5年", "5年以上"], "scores": [1, 2, 3, 4, 5]},
+    {"id": "Q5", "text": "對複雜商品(衍生性)投資經驗", "options": ["無經驗", "1年以內", "1-3年", "3-5年", "5年以上"], "scores": [1, 2, 3, 4, 5]},
+    {"id": "Q6", "text": "您的個人總資產概況", "options": ["小於300萬", "300萬-1000萬", "1000萬-3000萬", "3000萬以上"], "scores": [1, 2, 3, 4]},
+    {"id": "Q7", "text": "您的家庭年收入", "options": ["小於100萬", "100萬-300萬", "300萬-500萬", "500萬以上"], "scores": [1, 2, 3, 4]},
+    {"id": "Q8: ", "text": "您對投資配息的期待", "options": ["月配息", "半年配", "年配", "不要求"], "scores": [1, 2, 3, 4]},
+    {"id": "Q9", "text": "偏好的投資期間", "options": ["1年以下", "1-3年", "3-5年", "5年以上"], "scores": [1, 2, 3, 4]},
+    {"id": "Q10", "text": "緊急預備金保留比例", "options": ["100%", "50%", "25%", "10%以下"], "scores": [1, 2, 3, 4]},
+    {"id": "Q11", "text": "願意承擔的風險報酬比率", "options": ["5%", "10%", "15%", "20%"], "scores": [1, 2, 3, 4]},
+    {"id": "Q12", "text": "期望投資損益比率(獲利;虧損)", "options": ["5%;5%", "10%;10%", "15%;15%", "20%;20%"], "scores": [1, 2, 3, 4]},
+    {"id": "Q13", "text": "若短期下跌20%您的反應", "options": ["全部出清", "部分調整", "持續追低"], "scores": [1, 2, 3]}
+]
+
+# 3. 初始化 Session State (跨頁面記憶)
+if 'step' not in st.session_state:
+    st.session_state.step = 0
+if 'user_answers' not in st.session_state:
+    st.session_state.user_answers = {}
+
+# 4. 輔助函數
+def next_step():
+    st.session_state.step += 1
+
+def prev_step():
+    st.session_state.step -= 1
+
+def restart():
+    st.session_state.step = 0
+    st.session_state.user_answers = {}
+
+# --- 頁面渲染 ---
+
+# 進度條
+progress = st.session_state.step / (len(questions_data))
+st.progress(progress)
+
+# 判斷目前階段
+current_step = st.session_state.step
+
+if current_step < len(questions_data):
+    # 【測驗中】
+    q = questions_data[current_step]
+    
+    st.subheader(f"Step {current_step + 1}")
+    st.markdown(f"### {q['text']}")
+    
+    # 使用按鈕呈現選項 (卡片式感)
+    for idx, opt in enumerate(q['options']):
+        if st.button(opt, key=f"btn_{current_step}_{idx}", use_container_width=True):
+            # 記錄分數（如果有定義分數的話）
+            score = q['scores'][idx] if 'scores' in q else 0
+            st.session_state.user_answers[q['id']] = score
+            next_step()
+            st.rerun()
+
+    if current_step > 0:
+        st.write("---")
+        st.button("⬅️ 回到上一題", on_click=prev_step)
+
+else:
+    # 【結果顯示頁】
+    total_score = sum(st.session_state.user_answers.values())
+    
+    if total_score <= 18:
+        category, color = "保守型", "#28a745"
+        alloc = {"股票": 20, "債券": 60, "現金": 20}
+        desc = "您偏好資本保值，建議配置於高評等債券與儲蓄型商品。"
+    elif 18 < total_score <= 35:
+        category, color = "穩健型", "#fd7e14"
+        alloc = {"股票": 50, "債券": 40, "現金": 10}
+        desc = "您追求長期增值，建議採取股債均衡配置，降低單一市場波動影響。"
+    else:
+        category, color = "積極型", "#dc3545"
+        alloc = {"股票": 80, "債券": 15, "現金": 5}
+        desc = "您追求高報酬並能忍受波動。建議配置於成長型股票或特定產業基金。"
+
+    st.balloons()
+    st.success("評估完成！以下為您的專屬分析")
+    
+    # 呈現結果卡片
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown(f"""
+            <div style="background-color:{color}; padding:20px; border-radius:15px; text-align:center;">
+                <h2 style="color:white; margin:0;">{category}</h2>
+                <h1 style="color:white; margin:0;">{total_score} 分</h1>
+            </div>
+        """, unsafe_allow_html=True)
+        st.write("")
+        st.info(desc)
+        
+    with col2:
+        # 繪製資產配置圖
+        fig = go.Figure(data=[go.Pie(labels=list(alloc.keys()), values=list(alloc.values()), hole=.3)])
+        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=250)
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+    
+    # 呼籲行動 (Call to Action)
+    st.subheader("🚀 下一步建議")
+    st.write("1. 預約 15 分鐘財務顧問線上諮詢")
+    st.write("2. 下載適合您的資產配置建議書")
+    
+    if st.button("重新測驗"):
+        restart()
+        st.rerun()
